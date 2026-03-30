@@ -1,33 +1,49 @@
 {
-   "lat":33,
-   "lon":35,
-   "tz":"+02:00",
-   "date":"2020-03-04",
-   "units":"standard",
-   "cloud_cover":{
-      "afternoon":0
-   },
-   "humidity":{
-      "afternoon":33
-   },
-   "precipitation":{
-      "total":0
-   },
-   "temperature":{
-      "min":286.48,
-      "max":299.24,
-      "afternoon":296.15,
-      "night":289.56,
-      "evening":295.93,
-      "morning":287.59
-   },
-   "pressure":{
-      "afternoon":1015
-   },
-   "wind":{
-      "max":{
-         "speed":8.7,
-         "direction":120
-      }
-   }
+  "coord": {
+    "lon": 10.99,
+    "lat": 44.34
+  },
+  "weather": [
+    {
+      "id": 501,
+      "main": "Rain",
+      "description": "moderate rain",
+      "icon": "10d"
+    }
+  ],
+  "base": "stations",
+  "main": {
+    "temp": 298.48,
+    "feels_like": 298.74,
+    "temp_min": 297.56,
+    "temp_max": 300.05,
+    "pressure": 1015,
+    "humidity": 64,
+    "sea_level": 1015,
+    "grnd_level": 933
+  },
+  "visibility": 10000,
+  "wind": {
+    "speed": 0.62,
+    "deg": 349,
+    "gust": 1.18
+  },
+  "rain": {
+    "1h": 3.16
+  },
+  "clouds": {
+    "all": 100
+  },
+  "dt": 1661870592,
+  "sys": {
+    "type": 2,
+    "id": 2075663,
+    "country": "IT",
+    "sunrise": 1661834187,
+    "sunset": 1661882248
+  },
+  "timezone": 7200,
+  "id": 3163858,
+  "name": "Zocca",
+  "cod": 200
 }
