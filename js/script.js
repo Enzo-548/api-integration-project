@@ -5,6 +5,29 @@ const api = "c8921f0324e3c6dcaeba72c9ad2a6466";
 let cidade, estado, pais, lat, lon;
 const kelvin = 273.15;
 
+//basicamente um enum
+const dados = Object.freeze({
+  GEO_CIDADE: 0,
+  GEO_ESTADO: 1,
+  GEO_PAIS: 2,
+  COORD_LATITUDE: 3,
+  COORD_LONGITUDE: 4,
+  TEMPO_TIPO: 5,
+  TEMPO_DESCRICAO: 6,
+  TEMPO_ICONE: 7,
+  MAIN_TEMPERATURA: 8,
+  MAIN_SENSACAO: 9,
+  MAIN_MINIMA: 10,
+  MAIN_MAXIMA: 11,
+  MAIN_PRESSAO: 12,
+  MAIN_UMIDADE: 13,
+  MAIN_NIVEL_MAR: 14,
+  MAIN_NIVEL_SOLO: 15,
+  VISIBILIDADE: 16,
+  VENTO_VELOCIDADE: 17,
+  VENTO_ANGULO: 18,
+});
+
 document.addEventListener("DOMContentLoaded", async () => {
   //pegar cid, est, pais de algum input
   //setLocal();
@@ -43,7 +66,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("Vento:\t\t" + weatherData.wind.speed);
   console.log("Umidade:\t" + weatherData.main.humidity);
   console.log("Pressão:\t" + weatherData.main.pressure);
-
 });
 
 //caso base --> IP maquina
