@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Sprint 2 --> Aplicativo Clima/Tempo
 
 ## Exemplo de resposta da API weather:
@@ -56,6 +55,3 @@
 ```
 
 ---
-=======
-Weather web-aplication test integration
->>>>>>> bde2c79 (initial config)
