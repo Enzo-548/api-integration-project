@@ -7,12 +7,11 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <script type="module" src="js/script.js"></script>
-
+    
     <div class = "weather_container" style="background-color: aqua; height: 500px; width: 350px;">
-      <textarea class = "locale" id="input" style="width: 250px; height: 15px;" placeholder="Porto Alegre, RS"></textarea>
+      <input class = "locale" id="input" style="width: 250px; height: 15px;" placeholder="Porto Alegre, RS"></input>
       <!--Add botão SUBMIT-->
-      <div class = "current_weather" style="height:50px; width: 200px; background-color: aquamarine;">TEMPO</div>
+      <div class = "current_weather" id="tempAtual" style="height:50px; width: 200px; background-color: aquamarine;">TEMPO</div>
       <div class = "weather_forecast" style="height: 100px; width: 300px; background-color: blue; display: flex;">
         <div class = "forecast_slice" id="slice_1" style="background-color: blueviolet; height: 75px; width: 50px; margin: 5px;">ESSA PREVISAO</div>
         <div class = "forecast_slice" id="slice_2" style="background-color: blueviolet; height: 75px; width: 50px; margin: 5px;">ESSA PREVISAO</div>
@@ -29,4 +28,5 @@
     
     
   </body>
+  <script type="module" src="js/script.js"></script>
 </html>

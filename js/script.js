@@ -1,114 +1,125 @@
 import { fetchWeather, getWeatherURL } from "../api/weather.js";
 import { fetchGeoCode, getGeoURL } from "../api/geocode.js";
 
-const api = "c8921f0324e3c6dcaeba72c9ad2a6466";
-let cidade, estado, pais, lat, lon;
-let dados = [];
+const API_KEY = "c8921f0324e3c6dcaeba72c9ad2a6466";
 
-//basicamente um enum --> id.MAIN_TEMPERATURA = 30ºC
-const id = Object.freeze({
-  GEO_CIDADE: 0,
-  GEO_ESTADO: 1,
-  GEO_PAIS: 2,
-  TEMPO_DESCRICAO: 3,
-  MAIN_TEMPERATURA: 4,
-  MAIN_SENSACAO: 5,
-  MAIN_PRESSAO: 6,
-  MAIN_UMIDADE: 7,
-  VENTO_VELOCIDADE: 8,
+// DOM
+const slice1 = document.querySelector("#slice_1");
+const slice2 = document.querySelector("#slice_2");
+const slice3 = document.querySelector("#slice_3");
+const slice4 = document.querySelector("#slice_4");
+
+const lblTemp = document.querySelector("#temperature");
+const lblWind = document.querySelector("#wind");
+const lblHumi = document.querySelector("#humidity");
+const lblPress = document.querySelector("#pressure");
+
+const txtInput = document.querySelector("#input");
+
+inputCity.addEventListener("keydown", async (e) => {
+  if (e.key === "Enter") {
+    await init();
+  }
 });
 
-document.addEventListener("DOMContentLoaded", async () => {
-  //pegar cid, est, pais de algum input
-  //setLocal();
+// INIT
+document.addEventListener("DOMContentLoaded", init);
 
-  //caso base --> loc atual
-  const locUsuario = await getUserLocation({
-    enableHighAccuracy: true,
-    timeout: 10000,
-  });
-  lat = locUsuario.latitude;
-  lon = locUsuario.longitude;
+async function init() {
+  try {
+    location = await getUserLocation();
+    console.log("location:", location);
 
-  //Caso usuario selecione cidade, pais e estado
-  //document.getElementById(input).setLoc(cidade, estado, pais, api);
+    const data = await getWeatherData(location);
+    console.log("data:", data);
 
-  var weatherURL = await getWeatherURL(lat, lon, api);
-  const weatherData = await fetchWeather(weatherURL);
-  const lista = weatherData.list;
-
-  // pega o primeiro forecast (agora + 3h)
-  const proximos = lista.slice(0, 5);
-
-  proximos.forEach((item, index) => {
-    console.log(`id:${index} - ${item.dt_txt} | ${item.main.temp}°C`);
-  });
-
-  const atual = lista[0];
-
-  console.log("Descrição Tempo:\t" + atual.weather[0].description);
-
-  dados[id.TEMPO_DESCRICAO] = atual.weather[0].description;
-  dados[id.MAIN_TEMPERATURA] = atual.main.temp;
-  dados[id.MAIN_SENSACAO] = atual.main.feels_like;
-
-  console.log("Temperatura:\t\t" + atual.main.temp);
-  console.log("Sensação:\t\t" + atual.main.feels_like);
-  console.log("Vento:\t\t\t" + atual.wind.speed);
-  console.log("Umidade:\t\t" + atual.main.humidity);
-  console.log("Pressão:\t\t" + atual.main.pressure);
-  //dados[]
-});
-
-function setLoc(cidade, estado, pais, api) {
-  const geoData = fetchGeoCode(cidade, estado, pais, api);
-  lat = geoData[0].lat;
-  lon = geoData[0].lon;
+    renderWeather(data);
+    renderForecast(data.list);
+  } catch (error) {
+    console.error("Erro:", error.message);
+  }
 }
 
-//Função para pedir localização --> retorna Promise
-function getUserLocation(options = {}) {
+// Weather
+async function getWeatherData({ lat, lon }) {
+  const url = getWeatherURL(lat, lon, API_KEY);
+  return await fetchWeather(url);
+}
+
+// Location
+async function getUserLocation() {
+  if (txtInput.trim() !== "") {
+    const cidade = inputCity.value.trim();
+
+    const url = getGeoURL(cidade, API_KEY);
+    const geoData = await fetchGeoCode(url);
+
+    return {
+      lat: geoData[0].lat,
+      lon: geoData[0].lon,
+    };
+  } else {
+    return await getCurrentLocation({
+      enableHighAccuracy: true,
+      timeout: 10000,
+    });
+  }
+}
+
+function getCurrentLocation(options = {}) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation API não suportada no navegador."));
+      reject(new Error("Geolocation não suportada."));
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        resolve({ latitude, longitude });
+
+        resolve({
+          lat: latitude,
+          lon: longitude,
+        });
       },
       (error) => {
-        let msgErro = "Erro desconhecido ao acessar localização.";
+        let msg = "Erro desconhecido";
+
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            msgErro = "Permissão negada para acessar a localização.";
+            msg = "Permissão negada";
             break;
           case error.POSITION_UNAVAILABLE:
-            msgErro = "Localização indisponível.";
+            msg = "Localização indisponível";
             break;
           case error.TIMEOUT:
-            msgErro = "Tempo de requisição de localização esgotado.";
+            msg = "Tempo esgotado";
             break;
         }
-        reject(new Error(msgErro));
+
+        reject(new Error(msg));
       },
       options,
     );
   });
 }
 
-/*
+// UI
+function renderWeather(data) {
+  const atual = data.list[0];
 
-Localização ex: Erechim, RS
-Temperatura atual
-Sol/Chuva/Nublado/etc
+  lblTemp.textContent = `${Math.round(atual.main.temp)}°C`;
+  lblWind.textContent = `${atual.wind.speed} km/h`;
+  lblHumi.textContent = `${atual.main.humidity}%`;
+  lblPress.textContent = `${atual.main.pressure} hPa`;
+}
 
-Sensação
-Horas e Clima da hr -> [atual, prox1, prox2, prox3, prox4]
-Vento km/h
-Umidade %
-Sensação ºC
-Pressão hPa
+function renderForecast(list) {
+  const slices = [slice1, slice2, slice3, slice4];
 
-*/
+  list.slice(0, 4).forEach((item, index) => {
+    if (slices[index]) {
+      slices[index].textContent = `${Math.round(item.main.temp)}°C`;
+    }
+  });
+}
