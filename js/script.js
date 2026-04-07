@@ -99,6 +99,7 @@ function getUserLocation(options = {}) {
 }
 
 /*
+
 Localização ex: Erechim, RS
 Temperatura atual
 Sol/Chuva/Nublado/etc
@@ -109,7 +110,5 @@ Vento km/h
 Umidade %
 Sensação ºC
 Pressão hPa
-
-
 
 */
