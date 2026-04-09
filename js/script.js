@@ -60,7 +60,8 @@ async function getWeatherData({ lat, lon }) {
 
 // LOCATION (input / GPS)
 async function getUserLocation() {
-  const value = txtInput.value.trim();
+  const loc = txtInput.value.trim();
+  const pais = txtPais
 
   if (value !== "") {
     const partes = value.split(",").map((p) => p.trim());
@@ -135,7 +136,7 @@ function renderWeather(data) {
   const temp = Math.round(atual.main.temp);
   const descricao = atual.weather[0].description;
   const feels = Math.round(atual.main.feels_like);
-  const wind = atual.wind.speed;
+  const wind = Math.round(atual.wind.speed * 3.6);
   const humidity = atual.main.humidity;
   const pressure = atual.main.pressure;
   const icon = atual.weather[0].icon;
@@ -160,7 +161,18 @@ function renderForecast(list) {
   list.slice(0, 4).forEach((item, index) => {
     if (!slices[index]) return;
 
-    const hora = item.dt_txt.split(" ")[1].slice(0, 5);
+    const horaStr = item.dt_txt.split(" ")[1].slice(0, 5);
+
+    const [h, m] = horaStr.split(":").map(Number);
+
+    const data = new Date();
+    data.setHours(h);
+    data.setMinutes(m);
+
+    // subtrai 3 horas
+    data.setHours(data.getHours() - 3);
+
+    const hora = data.toTimeString().slice(0, 5);
     const temp = Math.round(item.main.temp);
     const icon = item.weather[0].icon;
     const iconURL = `https://openweathermap.org/img/wn/${icon}.png`;
@@ -194,10 +206,7 @@ function getWeatherGroup(description) {
 
   if (weatherText.includes("thunderstorm")) {
     return "storm";
-  } else if (
-    weatherText.includes("rain") ||
-    weatherText.includes("drizzle")
-  ) {
+  } else if (weatherText.includes("rain") || weatherText.includes("drizzle")) {
     return "rainy";
   } else if (weatherText.includes("cloud")) {
     return "cloudy";
@@ -279,7 +288,7 @@ function getFinalTheme(timeTheme, weatherTheme) {
 }
 
 function applyDynamicTheme(atual) {
-  const currentHour = 8;
+  const currentHour = 15;
   const timeGroup = getTimeGroup(currentHour);
   const weatherDescription = "sunny";
   const weatherGroup = getWeatherGroup(weatherDescription);
