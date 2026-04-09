@@ -12,15 +12,19 @@ const slices = [
 ];
 
 const tempAtual = document.querySelector("#tempAtual");
-
-const lblTemp = document.querySelector("#temperature");
 const lblWind = document.querySelector("#wind");
 const lblHumi = document.querySelector("#humidity");
 const lblPress = document.querySelector("#pressure");
-
+const lblFeels = document.querySelector("#feels");
 const txtInput = document.querySelector("#input");
 
-// ENTER no input
+const weatherContainer = document.querySelector(".weather");
+const weatherCards = document.querySelectorAll(".card--stat");
+const forecastSlices = document.querySelectorAll(".card--forecast");
+const currentWeather = document.querySelector(".weather__current");
+const forecastContainer = document.querySelector(".weather__forecast");
+
+// ENTER in input
 txtInput.addEventListener("keydown", async (e) => {
   if (e.key === "Enter") {
     await init();
@@ -39,9 +43,12 @@ async function init() {
 
     renderWeather(data);
     renderForecast(data.list);
+
+    const atual = data.list[0];
+    applyDynamicTheme(atual);
   } catch (error) {
-    console.error("Erro:", error.message);
-    tempAtual.textContent = "Erro ao carregar clima";
+    console.error("Error:", error.message);
+    tempAtual.textContent = "Error loading weather";
   }
 }
 
@@ -51,13 +58,12 @@ async function getWeatherData({ lat, lon }) {
   return await fetchWeather(url);
 }
 
-// LOCATION (input/GPS)
+// LOCATION (input / GPS)
 async function getUserLocation() {
   const value = txtInput.value.trim();
 
   if (value !== "") {
     const partes = value.split(",").map((p) => p.trim());
-    //mapeia separando nas virgulas
 
     const cidade = partes[0];
     const estado = partes[1] || "";
@@ -67,7 +73,7 @@ async function getUserLocation() {
     const geoData = await fetchGeoCode(url);
 
     if (!geoData || geoData.length === 0) {
-      alert("Local não encontrado");
+      alert("Location not found");
       return null;
     }
 
@@ -77,7 +83,6 @@ async function getUserLocation() {
     };
   }
 
-  // fallback: GPS
   return await getCurrentLocation({
     enableHighAccuracy: true,
     timeout: 10000,
@@ -88,7 +93,7 @@ async function getUserLocation() {
 function getCurrentLocation(options = {}) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation não suportada."));
+      reject(new Error("Geolocation not supported."));
       return;
     }
 
@@ -102,17 +107,17 @@ function getCurrentLocation(options = {}) {
         });
       },
       (error) => {
-        let msg = "Erro desconhecido";
+        let msg = "Unknown error";
 
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            msg = "Permissão negada";
+            msg = "Permission denied";
             break;
           case error.POSITION_UNAVAILABLE:
-            msg = "Localização indisponível";
+            msg = "Location unavailable";
             break;
           case error.TIMEOUT:
-            msg = "Tempo esgotado";
+            msg = "Request timeout";
             break;
         }
 
@@ -124,26 +129,31 @@ function getCurrentLocation(options = {}) {
 }
 
 // UI
-
 function renderWeather(data) {
   const atual = data.list[0];
 
-  const temp = atual.main.temp;
+  const temp = Math.round(atual.main.temp);
   const descricao = atual.weather[0].description;
+  const feels = Math.round(atual.main.feels_like);
+  const wind = atual.wind.speed;
+  const humidity = atual.main.humidity;
+  const pressure = atual.main.pressure;
   const icon = atual.weather[0].icon;
   const iconURL = `https://openweathermap.org/img/wn/${icon}@2x.png`;
 
   tempAtual.innerHTML = `
-    <div style="text-align:center;">
-      <p>${Math.round(temp)}°C || ${descricao}</p>
-      <!--<img src="${iconURL}" alt="clima">-->
+    <img src="${iconURL}" alt="${descricao}" />
+
+    <div class="weather__current-info">
+      <div class="weather__temperature">${temp}°C</div>
+      <p class="weather__description">${descricao}</p>
     </div>
   `;
 
-  lblTemp.textContent = `${temp}°C`;
-  lblWind.textContent = `${atual.wind.speed} km/h`;
-  lblHumi.textContent = `${atual.main.humidity}%`;
-  lblPress.textContent = `${atual.main.pressure} hPa`;
+  lblWind.textContent = `${wind} km/h`;
+  lblHumi.textContent = `${humidity}%`;
+  lblPress.textContent = `${pressure} hPa`;
+  lblFeels.textContent = `${feels}°C`;
 }
 
 function renderForecast(list) {
@@ -156,15 +166,16 @@ function renderForecast(list) {
     const iconURL = `https://openweathermap.org/img/wn/${icon}.png`;
 
     slices[index].innerHTML = `
-      <div style="text-align:center; font-size:12px;">
-        <p>${hora}</p>
-        <p>${temp}°C</p>
-        <img src="${iconURL}" />
-      </div>
+      <span class="card__label">${hora}</span>
+      <img src="${iconURL}" class="card__icon" alt="forecast icon" />
+      <span class="card__value">${temp}°C</span>
     `;
   });
 }
-//Sistema de cor dinâmica
+
+// ==========================
+// Dynamic color system
+// ==========================
 
 function getTimeGroup(hour) {
   if (hour >= 6 && hour < 12) {
@@ -177,17 +188,16 @@ function getTimeGroup(hour) {
     return "dawn";
   }
 }
-const currentHour = new Date().getHours();
-const timeGroup = getTimeGroup(currentHour);
-console.log("Current hour:", currentHour);
-console.log("Time group:", timeGroup);
 
 function getWeatherGroup(description) {
   const weatherText = description.toLowerCase();
 
   if (weatherText.includes("thunderstorm")) {
     return "storm";
-  } else if (weatherText.includes("rain") || weatherText.includes("drizzle")) {
+  } else if (
+    weatherText.includes("rain") ||
+    weatherText.includes("drizzle")
+  ) {
     return "rainy";
   } else if (weatherText.includes("cloud")) {
     return "cloudy";
@@ -195,7 +205,6 @@ function getWeatherGroup(description) {
     return "sunny";
   }
 }
-
 
 function getVisualTimeGroup(timeGroup) {
   if (timeGroup === "morning") {
@@ -229,7 +238,6 @@ function getVisualTimeGroup(timeGroup) {
   }
 }
 
-
 function getWeatherVisualGroup(weatherGroup) {
   if (weatherGroup === "sunny") {
     return {
@@ -258,10 +266,6 @@ function getWeatherVisualGroup(weatherGroup) {
   }
 }
 
-
-console.log("Morning theme", getVisualTimeGroup("morning"));
-console.log("Sunny visual", getWeatherVisualGroup("sunny"));
-
 function getFinalTheme(timeTheme, weatherTheme) {
   return {
     background: timeTheme.background,
@@ -274,7 +278,51 @@ function getFinalTheme(timeTheme, weatherTheme) {
   };
 }
 
+function applyDynamicTheme(atual) {
+  const currentHour = 8;
+  const timeGroup = getTimeGroup(currentHour);
+  const weatherDescription = "sunny";
+  const weatherGroup = getWeatherGroup(weatherDescription);
 
+  const timeTheme = getVisualTimeGroup(timeGroup);
+  const weatherTheme = getWeatherVisualGroup(weatherGroup);
+  const finalTheme = getFinalTheme(timeTheme, weatherTheme);
 
+  console.log("Current hour:", currentHour);
+  console.log("Time group:", timeGroup);
+  console.log("Weather description:", weatherDescription);
+  console.log("Weather group:", weatherGroup);
+  console.log("Final theme:", finalTheme);
 
+  document.body.style.background = `linear-gradient(135deg, ${finalTheme.background}, ${finalTheme.overlay})`;
+  document.body.style.color = finalTheme.text;
 
+  if (weatherContainer) {
+    weatherContainer.style.backgroundColor = finalTheme.container;
+    weatherContainer.style.color = finalTheme.text;
+    weatherContainer.style.transition = "all 0.4s ease";
+  }
+
+  if (currentWeather) {
+    currentWeather.style.backgroundColor = finalTheme.accent;
+    currentWeather.style.color = finalTheme.text;
+    currentWeather.style.transition = "all 0.4s ease";
+  }
+
+  if (forecastContainer) {
+    forecastContainer.style.backgroundColor = "transparent";
+    forecastContainer.style.transition = "all 0.4s ease";
+  }
+
+  forecastSlices.forEach((slice) => {
+    slice.style.backgroundColor = finalTheme.card;
+    slice.style.color = finalTheme.text;
+    slice.style.transition = "all 0.4s ease";
+  });
+
+  weatherCards.forEach((card) => {
+    card.style.backgroundColor = finalTheme.card;
+    card.style.color = finalTheme.text;
+    card.style.transition = "all 0.4s ease";
+  });
+}
