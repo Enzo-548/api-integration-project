@@ -16,7 +16,8 @@ const lblWind = document.querySelector("#wind");
 const lblHumi = document.querySelector("#humidity");
 const lblPress = document.querySelector("#pressure");
 const lblFeels = document.querySelector("#feels");
-const txtInput = document.querySelector("#input");
+const txtInput = document.querySelector("#txtInput");
+const txtPais  = document.querySelector("#txtPais");
 
 const weatherContainer = document.querySelector(".weather");
 const weatherCards = document.querySelectorAll(".card--stat");
@@ -61,14 +62,13 @@ async function getWeatherData({ lat, lon }) {
 // LOCATION (input / GPS)
 async function getUserLocation() {
   const loc = txtInput.value.trim();
-  const pais = txtPais
+  const pais = txtPais.value.trim();
 
   if (value !== "") {
     const partes = value.split(",").map((p) => p.trim());
 
     const cidade = partes[0];
     const estado = partes[1] || "";
-    const pais = partes[2] || "";
 
     const url = getGeoURL(cidade, estado, pais, API_KEY);
     const geoData = await fetchGeoCode(url);
