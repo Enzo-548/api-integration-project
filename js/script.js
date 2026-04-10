@@ -35,7 +35,7 @@ async function init() {
     if (!location) return;
 
     const data = await getWeatherData(location);
-
+    
     if (txtInput.value === "Cidade, EF, BR") {
       txtInput.value = data.city.name;
     }
@@ -157,29 +157,58 @@ function renderWeather(data) {
 }
 
 function renderForecast(list) {
-  list.slice(0, 4).forEach((item, index) => {
-    if (!slices[index]) return;
+  updateSlices(list);
+}
 
-    const horaStr = item.dt_txt.split(" ")[1].slice(0, 5);
-    const [h, m] = horaStr.split(":").map(Number);
+function updateSlices(list) {
+  const now = new Date();
 
-    const data = new Date();
-    data.setHours(h);
-    data.setMinutes(m);
+  for (let i = 0; i < 4; i++) {
+    const target = new Date(now);
+    target.setHours(now.getHours() + i + 1);
 
-    // ajuste fuso
-    data.setHours(data.getHours() - 3);
+    const closest = list.reduce((prev, curr) => {
+      const currDate = new Date(curr.dt_txt);
+      const prevDate = new Date(prev.dt_txt);
 
-    const hora = data.toTimeString().slice(0, 5);
-    const temp = Math.round(item.main.temp);
-    const icon = item.weather[0].icon;
+      return Math.abs(currDate - target) < Math.abs(prevDate - target)
+        ? curr
+        : prev;
+    });
 
+    const temp = Math.round(closest.main.temp);
+    const icon = closest.weather[0].icon;
     const iconURL = `https://openweathermap.org/img/wn/${icon}.png`;
 
-    slices[index].innerHTML = `
+    const hora = target.toTimeString().slice(0, 5);
+
+    if (!slices[i]) continue;
+
+    slices[i].innerHTML = `
       <span class="card__label">${hora}</span>
       <img src="${iconURL}" class="card__icon" />
       <span class="card__value">${temp}°C</span>
     `;
-  });
+  }
 }
+
+function scheduleNextHourUpdate(callback) {
+  const now = new Date();
+
+  const msUntilNextHour =
+    (60 - now.getMinutes()) * 60000 -
+    now.getSeconds() * 1000 -
+    now.getMilliseconds();
+
+  setTimeout(() => {
+    callback();
+
+    setInterval(callback, 60 * 60 * 1000);
+  }, msUntilNextHour);
+}
+
+scheduleNextHourUpdate(() => {
+  if (window.__weatherList) {
+    updateSlices(window.__weatherList);
+  }
+});
