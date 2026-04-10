@@ -1,9 +1,17 @@
 import { fetchWeather, getWeatherURL } from "../api/weather.js";
 import { fetchGeoCode, getGeoURL } from "../api/geocode.js";
 
-const API_KEY = "c8921f0324e3c6dcaeba72c9ad2a6466";
+const API_KEY = "SUA_API_KEY";
 
+// ==========================
+// STATE
+// ==========================
+let hourlyForecast = [];
+let lastLocation = null;
+
+// ==========================
 // DOM
+// ==========================
 const slices = [
   document.querySelector("#slice_1"),
   document.querySelector("#slice_2"),
@@ -18,50 +26,55 @@ const lblPress = document.querySelector("#pressure");
 const lblFeels = document.querySelector("#feels");
 const txtInput = document.querySelector("#txtInput");
 
-const weatherContainer = document.querySelector(".weather");
-const weatherCards = document.querySelectorAll(".card--stat");
-const forecastSlices = document.querySelectorAll(".card--forecast");
-const currentWeather = document.querySelector(".weather__current");
-const forecastContainer = document.querySelector(".weather__forecast");
-
-// ENTER in input
+// ==========================
+// EVENTS
+// ==========================
 txtInput.addEventListener("keydown", async (e) => {
   if (e.key === "Enter") {
-    await init();
+    await init(true);
   }
 });
 
-// INIT
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", () => init(false));
 
-async function init() {
+// ==========================
+// INIT
+// ==========================
+async function init(force = false) {
   try {
     const location = await getUserLocation();
     if (!location) return;
 
-    const data = await getWeatherData(location);
-    console.log(data);
+    lastLocation = location;
 
-    if (txtInput.value === "Cidade, EF, BR") txtInput.value = data.city.name;
+    const data = await getWeatherData(location);
+
+    if (txtInput.value === "Cidade, EF, BR") {
+      txtInput.value = data.city.name;
+    }
 
     renderWeather(data);
-    renderForecast(data.list);
 
-    const atual = data.list[0];
-    applyDynamicTheme(atual);
+    hourlyForecast = build24hForecast(data.list);
+    renderForecastSlices();
+
   } catch (error) {
-    console.error("Error:", error.message);
-    tempAtual.textContent = "Error loading weather";
+    console.error(error);
+    tempAtual.textContent = "Erro ao carregar clima";
   }
 }
 
-// WEATHER
+// ==========================
+// API
+// ==========================
 async function getWeatherData({ lat, lon }) {
   const url = getWeatherURL(lat, lon, API_KEY);
   return await fetchWeather(url);
 }
 
-// LOCATION (input / GPS)
+// ==========================
+// LOCATION
+// ==========================
 async function getUserLocation() {
   const loc = txtInput.value.trim();
 
@@ -71,11 +84,12 @@ async function getUserLocation() {
     const cidade = partes[0];
     const estado = partes[1] || "";
     const pais = partes[2] || "";
+
     const url = getGeoURL(cidade, estado, pais, API_KEY);
     const geoData = await fetchGeoCode(url);
 
     if (!geoData || geoData.length === 0) {
-      alert("Formatação: Cidade, EF, BR");
+      alert("Formato: Cidade, UF, BR");
       return null;
     }
 
@@ -85,54 +99,64 @@ async function getUserLocation() {
     };
   }
 
-  txtInput.value = "Cidade, EF, BR";
-
-  return await getCurrentLocation({
-    enableHighAccuracy: true,
-    timeout: 10000,
-  });
+  return await getCurrentLocation();
 }
 
-// GEOLOCATION
-function getCurrentLocation(options = {}) {
+// ==========================
+// GEO
+// ==========================
+function getCurrentLocation() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation not supported."));
+      reject("Geolocation não suportado");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-
+      (pos) =>
         resolve({
-          lat: latitude,
-          lon: longitude,
-        });
-      },
-      (error) => {
-        let msg = "Unknown error";
-
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            msg = "Permission denied";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            msg = "Location unavailable";
-            break;
-          case error.TIMEOUT:
-            msg = "Request timeout";
-            break;
-        }
-
-        reject(new Error(msg));
-      },
-      options,
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+        }),
+      () => reject("Erro localização")
     );
   });
 }
 
-// UI
+// ==========================
+// BUILD 24H FORECAST
+// ==========================
+function build24hForecast(list) {
+  const result = [];
+
+  for (let i = 0; i < list.length - 1; i++) {
+    const current = list[i];
+    const next = list[i + 1];
+
+    const t1 = current.main.temp;
+    const t2 = next.main.temp;
+
+    for (let h = 0; h < 3; h++) {
+      const ratio = h / 3;
+      const temp = t1 + (t2 - t1) * ratio;
+
+      const date = new Date(current.dt_txt);
+      date.setHours(date.getHours() + h);
+
+      result.push({
+        time: date,
+        temp: Math.round(temp),
+        icon: current.weather[0].icon,
+      });
+    }
+  }
+
+  return result.slice(0, 24);
+}
+
+// ==========================
+// RENDER CURRENT
+// ==========================
 function renderWeather(data) {
   const atual = data.list[0];
 
@@ -143,11 +167,11 @@ function renderWeather(data) {
   const humidity = atual.main.humidity;
   const pressure = atual.main.pressure;
   const icon = atual.weather[0].icon;
+
   const iconURL = `https://openweathermap.org/img/wn/${icon}@2x.png`;
 
   tempAtual.innerHTML = `
     <img src="${iconURL}" alt="${descricao}" />
-
     <div class="weather__current-info">
       <div class="weather__temperature">${temp}°C</div>
       <p class="weather__description">${descricao}</p>
@@ -160,231 +184,50 @@ function renderWeather(data) {
   lblFeels.textContent = `${feels}°C`;
 }
 
-function renderForecast(list) {
-  list.slice(0, 4).forEach((item, index) => {
-    if (!slices[index]) return;
+// ==========================
+// RENDER FORECAST (DINÂMICO)
+// ==========================
+function renderForecastSlices() {
+  const now = new Date();
 
-    const horaStr = item.dt_txt.split(" ")[1].slice(0, 5);
+  slices.forEach((slice, i) => {
+    const future = new Date(now);
+    future.setHours(now.getHours() + i);
 
-    const [h, m] = horaStr.split(":").map(Number);
+    const match = hourlyForecast.find(item =>
+      item.time.getHours() === future.getHours()
+    );
 
-    const data = new Date();
-    data.setHours(h);
-    data.setMinutes(m);
+    if (!match) return;
 
-    // subtrai 3 horas
-    data.setHours(data.getHours() - 3);
+    const hora = future.toTimeString().slice(0, 5);
+    const iconURL = `https://openweathermap.org/img/wn/${match.icon}.png`;
 
-    const hora = data.toTimeString().slice(0, 5);
-    const temp = Math.round(item.main.temp);
-    const icon = item.weather[0].icon;
-    const iconURL = `https://openweathermap.org/img/wn/${icon}.png`;
-
-    slices[index].innerHTML = `
+    slice.innerHTML = `
       <span class="card__label">${hora}</span>
       <img src="${iconURL}" class="card__icon" alt="forecast icon" />
-      <span class="card__value">${temp}°C</span>
+      <span class="card__value">${match.temp}°C</span>
     `;
   });
 }
 
 // ==========================
-// Dynamic color system
+// INTERVALS
 // ==========================
 
-function getTimeGroup(hour) {
-  if (hour >= 6 && hour < 12) {
-    return "morning";
-  } else if (hour >= 12 && hour < 18) {
-    return "afternoon";
-  } else if (hour >= 18 && hour < 24) {
-    return "night";
-  } else {
-    return "dawn";
+// Atualiza UI a cada 1h
+setInterval(() => {
+  renderForecastSlices();
+}, 60 * 60 * 1000);
+
+// Refetch a cada 3h (usa última localização válida)
+setInterval(async () => {
+  if (!lastLocation) return;
+
+  try {
+    const data = await getWeatherData(lastLocation);
+    hourlyForecast = build24hForecast(data.list);
+  } catch (err) {
+    console.error("Erro refetch:", err);
   }
-}
-
-function getWeatherGroup(description) {
-  const weatherText = description.toLowerCase();
-
-  if (weatherText.includes("thunderstorm")) {
-    return "storm";
-  } else if (weatherText.includes("rain") || weatherText.includes("drizzle")) {
-    return "rainy";
-  } else if (weatherText.includes("cloud")) {
-    return "cloudy";
-  } else {
-    return "sunny";
-  }
-}
-
-function getVisualTimeGroup(timeGroup) {
-  if (timeGroup === "morning") {
-    return {
-      background: "#fdf4e3",
-      container: "rgba(255, 255, 255, 0.75)",
-      card: "rgba(255, 236, 210, 0.6)",
-      text: "#3d2c1e",
-      textSoft: "rgba(61, 44, 30, 0.6)",
-      border: "rgba(210, 170, 120, 0.3)",
-    };
-  } else if (timeGroup === "afternoon") {
-    return {
-      background: "#d4e9ff",
-      container: "rgba(255, 255, 255, 0.7)",
-      card: "rgba(200, 225, 255, 0.5)",
-      text: "#1a3a5c",
-      textSoft: "rgba(26, 58, 92, 0.6)",
-      border: "rgba(100, 160, 230, 0.25)",
-    };
-  } else if (timeGroup === "night") {
-    return {
-      background: "#0f1b2d",
-      container: "rgba(255, 255, 255, 0.06)",
-      card: "rgba(255, 255, 255, 0.08)",
-      text: "#c8d8ec",
-      textSoft: "rgba(200, 216, 236, 0.5)",
-      border: "rgba(255, 255, 255, 0.08)",
-    };
-  } else {
-    return {
-      background: "#0a0e1a",
-      container: "rgba(255, 255, 255, 0.04)",
-      card: "rgba(255, 255, 255, 0.06)",
-      text: "#a0b0c8",
-      textSoft: "rgba(160, 176, 200, 0.5)",
-      border: "rgba(255, 255, 255, 0.06)",
-    };
-  }
-}
-
-function getWeatherVisualGroup(weatherGroup, timeGroup) {
-  const isDark = timeGroup === "night" || timeGroup === "dawn";
-
-  if (weatherGroup === "sunny") {
-    return {
-      gradient2: isDark ? "#1a1040" : "#fce4a8",
-      accent: isDark ? "rgba(255, 200, 80, 0.15)" : "rgba(255, 183, 77, 0.2)",
-      highlight: isDark ? "#f0c060" : "#e8a030",
-    };
-  } else if (weatherGroup === "cloudy") {
-    return {
-      gradient2: isDark ? "#1a2030" : "#c8d5e0",
-      accent: isDark ? "rgba(150, 180, 210, 0.1)" : "rgba(120, 150, 180, 0.15)",
-      highlight: isDark ? "#7090b0" : "#5a7a96",
-    };
-  } else if (weatherGroup === "rainy") {
-    return {
-      gradient2: isDark ? "#0d1520" : "#a8c0d8",
-      accent: isDark ? "rgba(80, 120, 180, 0.12)" : "rgba(70, 110, 170, 0.18)",
-      highlight: isDark ? "#5080c0" : "#3a6aa0",
-    };
-  } else {
-    return {
-      gradient2: isDark ? "#120818" : "#b0a0c8",
-      accent: isDark ? "rgba(100, 60, 160, 0.12)" : "rgba(90, 60, 150, 0.18)",
-      highlight: isDark ? "#8060c0" : "#5a3a90",
-    };
-  }
-}
-
-function getFinalTheme(timeTheme, weatherTheme) {
-  return {
-    background: timeTheme.background,
-    gradient2: weatherTheme.gradient2,
-    container: timeTheme.container,
-    card: timeTheme.card,
-    text: timeTheme.text,
-    textSoft: timeTheme.textSoft,
-    border: timeTheme.border,
-    accent: weatherTheme.accent,
-    highlight: weatherTheme.highlight,
-  };
-}
-
-function applyDynamicTheme(atual) {
-  const currentHour = new Date().getHours();
-  const weatherDescription = atual.weather[0].description;
-
-  const timeGroup = getTimeGroup(currentHour);
-  const weatherGroup = getWeatherGroup(weatherDescription);
-
-  const timeTheme = getVisualTimeGroup(timeGroup);
-  const weatherTheme = getWeatherVisualGroup(weatherGroup, timeGroup);
-  const finalTheme = getFinalTheme(timeTheme, weatherTheme);
-
-  const isDark = timeGroup === "night" || timeGroup === "dawn";
-  const innerLight = isDark
-    ? "inset 0 1px 0 rgba(255,255,255,0.08)"
-    : "inset 0 1px 0 rgba(255,255,255,0.35)";
-
-  document.body.style.background = `linear-gradient(160deg, ${finalTheme.background}, ${finalTheme.gradient2})`;
-  document.body.style.color = finalTheme.text;
-  document.body.style.transition = "background 0.6s ease";
-
-  if (weatherContainer) {
-    weatherContainer.style.backgroundColor = finalTheme.container;
-    weatherContainer.style.borderColor = finalTheme.border;
-    weatherContainer.style.color = finalTheme.text;
-    weatherContainer.style.backdropFilter = "blur(28px)";
-    weatherContainer.style.webkitBackdropFilter = "blur(28px)";
-    weatherContainer.style.boxShadow = `0 8px 32px rgba(0,0,0,${isDark ? "0.25" : "0.08"}), ${innerLight}`;
-    weatherContainer.style.transition = "all 0.5s ease";
-  }
-
-  if (currentWeather) {
-    currentWeather.style.backgroundColor = finalTheme.accent;
-    currentWeather.style.borderColor = finalTheme.border;
-    currentWeather.style.borderLeft = `3px solid ${finalTheme.highlight}`;
-    currentWeather.style.color = finalTheme.text;
-    currentWeather.style.backdropFilter = "blur(20px)";
-    currentWeather.style.webkitBackdropFilter = "blur(20px)";
-    currentWeather.style.boxShadow = `0 4px 16px rgba(0,0,0,${isDark ? "0.2" : "0.06"}), ${innerLight}`;
-    currentWeather.style.transition = "all 0.5s ease";
-  }
-
-  forecastSlices.forEach((slice) => {
-    slice.style.backgroundColor = finalTheme.card;
-    slice.style.borderColor = finalTheme.border;
-    slice.style.color = finalTheme.text;
-    slice.style.backdropFilter = "blur(20px)";
-    slice.style.webkitBackdropFilter = "blur(20px)";
-    slice.style.boxShadow = `0 2px 8px rgba(0,0,0,${isDark ? "0.15" : "0.04"}), ${innerLight}`;
-    slice.style.transition = "all 0.5s ease";
-  });
-
-  weatherCards.forEach((card) => {
-    card.style.backgroundColor = finalTheme.card;
-    card.style.borderColor = finalTheme.border;
-    card.style.color = finalTheme.text;
-    card.style.backdropFilter = "blur(20px)";
-    card.style.webkitBackdropFilter = "blur(20px)";
-    card.style.boxShadow = `0 2px 8px rgba(0,0,0,${isDark ? "0.15" : "0.04"}), ${innerLight}`;
-    card.style.transition = "all 0.5s ease";
-  });
-
-  document.querySelectorAll(".card__label").forEach((label) => {
-    label.style.color = finalTheme.textSoft;
-  });
-
-  document.querySelectorAll(".card__value").forEach((value) => {
-    value.style.color = finalTheme.text;
-  });
-
-  document.querySelectorAll("img").forEach((img) => {
-    img.style.filter = isDark
-      ? "drop-shadow(0 0 4px rgba(255,255,255,0.3))"
-      : "drop-shadow(0 1px 2px rgba(0,0,0,0.3)) contrast(1.2)";
-  });
-
-  const input = document.querySelector(".weather__location-input");
-  if (input) input.style.color = finalTheme.text;
-
-  const country = document.querySelector(".weather__country");
-  if (country) country.style.color = finalTheme.textSoft;
-
-  const description = document.querySelector(".weather__description");
-  if (description) description.style.color = finalTheme.textSoft;
-
-  document.body.classList.add("theme-ready");
-}
+}, 3 * 60 * 60 * 1000);
