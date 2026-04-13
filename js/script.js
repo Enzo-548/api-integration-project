@@ -1,7 +1,7 @@
 import { fetchWeather, getWeatherURL } from "../api/weather.js";
 import { fetchGeoCode, getGeoURL } from "../api/geocode.js";
 
-const API_KEY = "c8921f0324e3c6dcaeba72c9ad2a6466";
+const API_KEY = "fae5776eb5f0a84117d1a05d2cdb9f3c";
 
 // DOM
 const slices = [
@@ -41,14 +41,20 @@ async function init() {
 
     const data = await getWeatherData(location);
     console.log(data);
-
-    if (txtInput.value === "Cidade, EF, BR") txtInput.value = data.city.name;
+    console.log(txtInput.value)
+    //middle of nowhere city
+    if (txtInput.value === "Cidade, EF, BR") txtInput.value = "Glasgow, MT, US";
 
     renderWeather(data);
     renderForecast(data.list);
 
     const atual = data.list[0];
-    applyDynamicTheme(atual);
+    //Solução para atualizar o tempo dinamicamente conforme o local
+    const localTimezone = data.city.timezone;
+    const currentTime = Math.floor(Date.now()/1000);
+    const tempo = new Date((currentTime+localTimezone)*1000).getUTCHours();
+    
+    applyDynamicTheme(atual, tempo);
   } catch (error) {
     console.error("Error:", error.message);
     tempAtual.textContent = "Error loading weather";
@@ -87,10 +93,11 @@ async function getUserLocation() {
 
   txtInput.value = "Cidade, EF, BR";
 
-  return await getCurrentLocation({
+  return await getCurrentLocation(
+    {
     enableHighAccuracy: true,
     timeout: 10000,
-  });
+    });
 }
 
 // GEOLOCATION
@@ -116,6 +123,11 @@ function getCurrentLocation(options = {}) {
         switch (error.code) {
           case error.PERMISSION_DENIED:
             msg = "Permission denied";
+            //Glasgow, Montana, USA
+            resolve({
+              lat: 48.1969,
+              lon: -106.6367,
+            });
             break;
           case error.POSITION_UNAVAILABLE:
             msg = "Location unavailable";
@@ -302,9 +314,9 @@ function getFinalTheme(timeTheme, weatherTheme) {
   };
 }
 
-function applyDynamicTheme(atual) {
-  const currentHour = new Date().getHours();
-  const weatherDescription = atual.weather[0].description;
+function applyDynamicTheme(atual, tempo) {
+  const currentHour = tempo;
+  const weatherDescription = atual.weather[0].main;
 
   const timeGroup = getTimeGroup(currentHour);
   const weatherGroup = getWeatherGroup(weatherDescription);
